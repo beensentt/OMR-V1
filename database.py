@@ -5,7 +5,7 @@ import hashlib
 from numpy.core.records import record
 
 SALT = "PasswordSalt"
-DB_NAME = "database.db"
+DB_NAME = "NEW-DB.db"
 
 
 def hash(password):

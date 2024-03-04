@@ -24,7 +24,7 @@ app = Flask(__name__)
 fa = FontAwesome(app)
 
 app.secret_key = "secret_key"
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 16 MB
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
 ANSWER_LETTERS = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: '-', 6: 'X'}

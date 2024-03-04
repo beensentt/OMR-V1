@@ -1,5 +1,6 @@
 from datetime import datetime
-import database as db
+# import database as db
+import databasemysql as dbmysql
 from wtforms import Form, StringField, PasswordField, validators
 import omr
 from flask_fontawesome import FontAwesome
@@ -58,8 +59,8 @@ def item_analysis(response_df):
     item_discrimination = response_df.corrwith(response_df['Total_Score'])
     
     
-    print("Item Difficulty:", item_difficulty)
-    print("Item Discrimination:", item_discrimination)
+    # print("Item Difficulty:", item_difficulty)
+    # print("Item Discrimination:", item_discrimination)
     return item_difficulty, item_discrimination
 #end of function
 
@@ -77,7 +78,7 @@ def createUploadDirectory():
 
 def deleteUploadDirectory():
     if 'UPLOAD_FOLDER' in session:
-        print("Deleting directory: " + session['UPLOAD_FOLDER'])
+        # print("Deleting directory: " + session['UPLOAD_FOLDER'])
         if os.path.isdir(session['UPLOAD_FOLDER']):
             shutil.rmtree(session['UPLOAD_FOLDER'])
         session['UPLOAD_FOLDER'] = ''
@@ -117,9 +118,9 @@ def register():
     if request.method == 'POST' and form.validate():
         user = (form.name.data, form.surname.data, form.email.data,
                 form.password.data)
-        if db.register(user[0], user[1], user[2], user[3]):
+        if dbmysql.register(user[0], user[1], user[2], user[3]):
             flash('Registration successful, you can log in', 'success')
-            print("Registration successful")
+            # print("Registration successful")
             return redirect(url_for('login'), code=302)
         flash(
             'Registration could not be completed, because you have not registered with the same password \
@@ -135,9 +136,9 @@ def login():
     form = LoginForm(request.form)
     if request.method == 'POST' and form.validate():
         user = (form.email.data, form.password.data)
-        if db.login(user[0], user[1]):
+        if dbmysql.login(user[0], user[1]):
             session['login'] = True
-            session['user'] = db.getUserByEmail(user[0])
+            session['user'] = dbmysql.getUserByEmail(user[0])
             flash('You have successfully logged in.', 'success')
             return redirect('/')
         flash('Login failed, please check your email and password!', 'error')
@@ -217,14 +218,14 @@ def account():
     if isLoggedIn():
         session.pop('_flashes', None)
         operations = list()
-        temp = db.getOperationsByEmail(getUser()["email"])
+        temp = dbmysql.getOperationsByEmail(getUser()["email"])
         if temp is not None:
             operations = list(temp)
             for ind, op in enumerate(operations):
                 operations[ind] = list(op)
                 operations[ind].append(datetime.fromtimestamp(
                     int(op[0])))
-                operations[ind].append(len(db.getRecordsById(op[0])))
+                operations[ind].append(len(dbmysql.getRecordsById(op[0])))
         return render_template(
             'account.html', user=getUser(),
             operations=operations, page='account', login=isLoggedIn())
@@ -238,9 +239,9 @@ def detail():
     if isLoggedIn():
         session.pop('_flashes', None)
         id = request.args.get('id')
-        answerKey = db.getOperationById(id)[2]
+        answerKey = dbmysql.getOperationById(id)[2]
         records = list()
-        temp = db.getRecordsById(id)
+        temp = dbmysql.getRecordsById(id)
         if temp is not None:
             records = list(temp)
         return render_template(
@@ -265,6 +266,20 @@ def logout():
     return redirect('/')
 
 
+def swapAnswerKeys(input_str):
+    chars = list(input_str)
+    for i in range(0, len(chars) - 1, 2):
+        chars[i], chars[i + 1] = chars[i + 1], chars[i]
+    swapped_str = ''.join(chars)
+    return swapped_str
+
+def swapAnswerKeys(input_str):
+    chars = list(input_str)
+    for i in range(0, len(chars) - 1, 2):
+        chars[i], chars[i + 1] = chars[i + 1], chars[i]
+    swapped_str = ''.join(chars)
+    return swapped_str
+
 @app.route('/uploadAnswerKey', methods=['POST'])
 def uploadAnswerKey():
     if isLoggedIn():
@@ -282,7 +297,9 @@ def uploadAnswerKey():
                 ANSWERS_STR = ''
                 for ans in ANSWER_KEY:
                     ANSWERS_STR += (ANSWER_LETTERS[ans])
-                session['ANSWERS_STR'] = ANSWERS_STR
+
+                swapped_ANSWERS_STR = swapAnswerKeys(ANSWERS_STR)  # Swap the answer key
+                session['ANSWERS_STR'] = swapped_ANSWERS_STR  # Update session variable with swapped answer string
             else:
                 deleteUploadDirectory()
                 flash(
@@ -307,6 +324,18 @@ def uploadAnswerKey():
 
 
 
+def swapAnswerKeys(input_str):
+    chars = list(input_str)
+    
+    # Iterate through the string two characters at a time and swap them
+    for i in range(0, len(chars) - 1, 2):
+        chars[i], chars[i + 1] = chars[i + 1], chars[i]
+    
+    # Convert the list back to a string
+    swapped_str = ''.join(chars)
+    
+    return swapped_str
+
 @app.route('/uploadPapers', methods=['POST'])
 def uploadPapers():
     if isLoggedIn():
@@ -327,12 +356,17 @@ def uploadPapers():
                         ANSWERS_STR += (ANSWER_LETTERS[ans])
                     temp.append(ANSWERS_STR)
 
+                    # Swap answer keys
+                    last_ANSWERS_STR = swapAnswerKeys(ANSWERS_STR)
+
+                    # print("Last Answer String:", last_ANSWERS_STR)
+
                     result = omr.getScores(
                         (session['UPLOAD_FOLDER'] + '/' + filename),
                         session['ANSWER_KEY'],
                         session['UPLOAD_FOLDER'])
                     temp.append(result[0])
-                    print(result[1])
+                    # print(result[1])
                     temp.append('static' + (result[1].split('static')[1]))
                     temp.append(result[3])
                     temp.append(result[4])
@@ -348,16 +382,17 @@ def uploadPapers():
                         scores[5] = empty
                         
                     """
-                    db.addOperation(session['UPLOAD_FOLDER'], getUser()[
+                    # Add to the database using dbmysql
+                    dbmysql.addOperation(session['UPLOAD_FOLDER'], getUser()[
                         "email"], session['ANSWERS_STR'])
-                    db.addRecord(
+                    dbmysql.addRecord(
                         session['UPLOAD_FOLDER'],
                         result[1],
                         result[3],
                         result[4],
                         result[5],
                         result[0],
-                        ANSWERS_STR, result[2])
+                       last_ANSWERS_STR, result[2])
                 else:
                     flash(
                         'The file extension you uploaded is not supported. \
